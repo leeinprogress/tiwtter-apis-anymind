@@ -2,13 +2,15 @@
 
 from fastapi import FastAPI, HTTPException
 
+from app.application.services import TweetService
 from app.bootstrap.config import get_settings
 from app.core.exceptions import TwitterAPIError
 from app.infrastructure.twitter.client import TwitterClient
 
-# Initialize settings and client
+# Initialize settings, client and service
 settings = get_settings()
 twitter_client = TwitterClient(settings)
+tweet_service = TweetService(twitter_client)
 
 # Create FastAPI app
 app = FastAPI(
@@ -20,6 +22,7 @@ app = FastAPI(
 
 @app.get("/")
 async def root():
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "service": "Twitter API Service",
@@ -29,8 +32,18 @@ async def root():
 
 @app.get("/hashtags/{hashtag}")
 async def get_tweets_by_hashtag(hashtag: str, limit: int = 30):
+    """
+    Get tweets by hashtag
+    
+    Args:
+        hashtag: Hashtag to search (e.g., 'Python')
+        limit: Number of tweets to retrieve (default: 30)
+    
+    Example:
+        GET /hashtags/Python?limit=40
+    """
     try:
-        tweets = await twitter_client.get_tweets_by_hashtag(hashtag, limit)
+        tweets = await tweet_service.get_tweets_by_hashtag(hashtag, limit)
         
         # Convert to dict for JSON response (matching spec format)
         return [
@@ -55,8 +68,18 @@ async def get_tweets_by_hashtag(hashtag: str, limit: int = 30):
 
 @app.get("/users/{username}")
 async def get_user_tweets(username: str, limit: int = 30):
+    """
+    Get tweets from user's timeline
+    
+    Args:
+        username: Twitter username (e.g., 'twitter')
+        limit: Number of tweets to retrieve (default: 30)
+    
+    Example:
+        GET /users/twitter?limit=20
+    """
     try:
-        tweets = await twitter_client.get_tweets_by_user(username, limit)
+        tweets = await tweet_service.get_tweets_by_user(username, limit)
         
         # Convert to dict for JSON response (matching spec format)
         return [

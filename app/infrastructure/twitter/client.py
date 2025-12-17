@@ -11,11 +11,12 @@ from app.core.exceptions import (
     TwitterResourceNotFoundError,
     TwitterServiceUnavailableError,
 )
+from app.core.interfaces import TweetRepository
 from app.infrastructure.twitter.auth import TwitterAuthenticator
 from app.infrastructure.twitter.mapper import map_tweet
 
 
-class TwitterClient:
+class TwitterClient(TweetRepository):
     """Client for interacting with Twitter API v2"""
     
     def __init__(self, settings: Settings):
@@ -24,7 +25,16 @@ class TwitterClient:
         self.authenticator = TwitterAuthenticator(settings)
     
     async def get_tweets_by_hashtag(self, hashtag: str, limit: int = 30) -> list[Tweet]:
-
+        """
+        Get tweets by hashtag
+        
+        Args:
+            hashtag: Hashtag to search (with or without #)
+            limit: Number of tweets to retrieve (default: 30)
+            
+        Returns:
+            List of Tweet entities
+        """
         # Clean hashtag
         hashtag = hashtag.lstrip("#")
         query = f"#{hashtag}"
@@ -66,6 +76,16 @@ class TwitterClient:
                 )
     
     async def get_tweets_by_user(self, username: str, limit: int = 30) -> list[Tweet]:
+        """
+        Get tweets from user's timeline
+        
+        Args:
+            username: Twitter username (with or without @)
+            limit: Number of tweets to retrieve (default: 30)
+            
+        Returns:
+            List of Tweet entities
+        """
         # Clean username
         username = username.lstrip("@")
         
@@ -118,7 +138,7 @@ class TwitterClient:
                 )
     
     def _handle_response_errors(self, response: httpx.Response) -> None:
- 
+        """Handle HTTP response errors"""
         if response.status_code == 200:
             return
         
