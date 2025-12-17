@@ -14,15 +14,17 @@ from app.core.exceptions import (
 from app.core.interfaces import TweetRepository
 from app.infrastructure.twitter.auth import TwitterAuthenticator
 from app.infrastructure.twitter.mapper import map_tweet
+from app.infrastructure.twitter.rate_limiter import RateLimiter
 
 
 class TwitterClient(TweetRepository):
     """Client for interacting with Twitter API v2"""
     
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, rate_limiter: RateLimiter | None = None):
         self.settings = settings
         self.base_url = settings.twitter_api_base_url
         self.authenticator = TwitterAuthenticator(settings)
+        self.rate_limiter = rate_limiter or RateLimiter()
     
     async def get_tweets_by_hashtag(self, hashtag: str, limit: int = 30) -> list[Tweet]:
         """
@@ -42,6 +44,8 @@ class TwitterClient(TweetRepository):
         # Call Twitter API
         async with httpx.AsyncClient() as client:
             try:
+                await self.rate_limiter.acquire("search_tweets")
+                
                 response = await client.get(
                     f"{self.base_url}/tweets/search/recent",
                     params={
@@ -91,6 +95,8 @@ class TwitterClient(TweetRepository):
         
         async with httpx.AsyncClient() as client:
             try:
+                await self.rate_limiter.acquire("get_user")
+                
                 # First, get user info
                 user_response = await client.get(
                     f"{self.base_url}/users/by/username/{username}",
@@ -102,6 +108,8 @@ class TwitterClient(TweetRepository):
                 self._handle_response_errors(user_response)
                 user_data = user_response.json()["data"]
                 user_id = user_data["id"]
+                
+                await self.rate_limiter.acquire("user_timeline")
                 
                 # Get user's tweets
                 tweets_response = await client.get(
