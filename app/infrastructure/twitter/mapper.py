@@ -2,6 +2,9 @@ from typing import Any
 from datetime import datetime
 
 from app.core.entities import Account, Tweet
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | None:
@@ -14,6 +17,7 @@ def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | N
         user_data = _find_user(author_id, includes)
         
         if not user_data:
+            logger.warning("User not found: author_id=%s", author_id)
             return None
         
         # Create Account
@@ -39,7 +43,8 @@ def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | N
             retweets=metrics.get("retweet_count", 0),
             text=tweet_data.get("text", "")
         )
-    except (ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError) as e:
+        logger.error("Tweet mapping error: %s (tweet_id=%s)", str(e), tweet_data.get("id"))
         return None
 
 

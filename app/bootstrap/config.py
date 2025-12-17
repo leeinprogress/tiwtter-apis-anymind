@@ -14,6 +14,10 @@ class Settings(BaseModel):
     # Twitter API
     twitter_bearer_token: str
     twitter_api_base_url: str
+    
+    # Logging
+    log_level: str 
+    log_format: str 
 
 
 _settings: Settings | None = None

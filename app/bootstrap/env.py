@@ -31,4 +31,6 @@ def load_environment() -> dict[str, Any]:
             "TWITTER_API_BASE_URL", 
             "https://api.twitter.com/2"
         ),
+        "log_level": os.getenv("LOG_LEVEL", "INFO"),
+        "log_format": os.getenv("LOG_FORMAT", "json"),
     }
