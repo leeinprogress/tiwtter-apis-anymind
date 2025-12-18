@@ -23,3 +23,7 @@ class TwitterResourceNotFoundError(TwitterAPIError):
 class TwitterServiceUnavailableError(TwitterAPIError):
     def __init__(self, message: str = "Twitter service unavailable") -> None:
         super().__init__(message, status_code=503)
+
+
+class CacheError(Exception):
+    pass

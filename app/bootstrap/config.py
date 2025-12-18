@@ -15,6 +15,12 @@ class Settings(BaseModel):
     twitter_bearer_token: str
     twitter_api_base_url: str
     
+    # Cache
+    cache_enabled: bool
+    cache_ttl: int = Field(ge=0, le=3600)
+    redis_url: str
+    redis_enabled: bool
+    
     # Logging
     log_level: str 
     log_format: str 

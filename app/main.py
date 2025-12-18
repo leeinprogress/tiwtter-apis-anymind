@@ -5,14 +5,16 @@ from fastapi import FastAPI, HTTPException
 from app.application.services import TweetService
 from app.bootstrap.config import get_settings
 from app.core.exceptions import TwitterAPIError
+from app.infrastructure.cache.cache_service import RedisCacheService
 from app.infrastructure.http.client import create_http_client
 from app.infrastructure.twitter.client import TwitterClient
 
-# Initialize settings, HTTP client, Twitter client and service
+# Initialize settings, HTTP client, Twitter client, cache and service
 settings = get_settings()
 http_client = create_http_client(settings)
 twitter_client = TwitterClient(settings, http_client)
-tweet_service = TweetService(twitter_client)
+cache_service = RedisCacheService(settings)
+tweet_service = TweetService(twitter_client, cache_service, settings)
 
 # Create FastAPI app
 app = FastAPI(

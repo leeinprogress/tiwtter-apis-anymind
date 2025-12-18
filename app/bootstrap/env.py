@@ -31,6 +31,10 @@ def load_environment() -> dict[str, Any]:
             "TWITTER_API_BASE_URL", 
             "https://api.twitter.com/2"
         ),
+        "cache_enabled": os.getenv("CACHE_ENABLED", "false").lower() == "true",
+        "cache_ttl": int(os.getenv("CACHE_TTL", "300")),
+        "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379"),
+        "redis_enabled": os.getenv("REDIS_ENABLED", "false").lower() == "true",
         "log_level": os.getenv("LOG_LEVEL", "INFO"),
         "log_format": os.getenv("LOG_FORMAT", "json"),
     }

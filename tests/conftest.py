@@ -18,6 +18,10 @@ def test_settings() -> Settings:
         port=8000,
         twitter_bearer_token="test_bearer_token",
         twitter_api_base_url="https://api.twitter.com/2",
+        cache_enabled=False,
+        cache_ttl=300,
+        redis_url="redis://localhost:6379",
+        redis_enabled=False,
         log_level="INFO",
         log_format="json",
     )
@@ -28,7 +32,8 @@ def setup_integration_env():
     original_env = {}
     env_keys = [
         "DEBUG", "HOST", "PORT", "TWITTER_BEARER_TOKEN",
-        "TWITTER_API_BASE_URL", "LOG_LEVEL", "LOG_FORMAT"
+        "TWITTER_API_BASE_URL", "CACHE_ENABLED", "CACHE_TTL",
+        "REDIS_URL", "REDIS_ENABLED", "LOG_LEVEL", "LOG_FORMAT"
     ]
     
     for key in env_keys:
@@ -39,6 +44,10 @@ def setup_integration_env():
     os.environ["PORT"] = "8000"
     os.environ["TWITTER_BEARER_TOKEN"] = "test_bearer_token"
     os.environ["TWITTER_API_BASE_URL"] = "https://api.twitter.com/2"
+    os.environ["CACHE_ENABLED"] = "false"
+    os.environ["CACHE_TTL"] = "300"
+    os.environ["REDIS_URL"] = "redis://localhost:6379"
+    os.environ["REDIS_ENABLED"] = "false"
     os.environ["LOG_LEVEL"] = "INFO"
     os.environ["LOG_FORMAT"] = "json"
     
@@ -101,4 +110,13 @@ def mock_tweets():
             text="Learning #Python is fun! #coding",
         ),
     ]
+
+
+@pytest.fixture
+def mock_cache_service():
+    cache = AsyncMock()
+    cache.get.return_value = None
+    cache.set.return_value = None
+    cache.delete.return_value = None
+    return cache
 
