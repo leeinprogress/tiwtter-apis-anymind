@@ -78,8 +78,11 @@ class TestTwitterClient:
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 401
+        mock_response.is_success = False
         mock_response.json.return_value = MOCK_ERROR_RESPONSE_401
         mock_response.text = "Unauthorized"
+        mock_response.url = "https://api.twitter.com/2/tweets/search/recent"
+        mock_response.headers = {}
         mock_http_client.get.return_value = mock_response
         
         with pytest.raises(TwitterAuthenticationError):
@@ -91,8 +94,11 @@ class TestTwitterClient:
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
+        mock_response.is_success = False
         mock_response.json.return_value = MOCK_ERROR_RESPONSE_404
         mock_response.text = "Not found"
+        mock_response.url = "https://api.twitter.com/2/tweets/search/recent"
+        mock_response.headers = {}
         mock_http_client.get.return_value = mock_response
         
         with pytest.raises(TwitterResourceNotFoundError):
@@ -104,6 +110,11 @@ class TestTwitterClient:
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 429
+        mock_response.is_success = False
+        mock_response.json.return_value = {}
+        mock_response.text = "Rate limit exceeded"
+        mock_response.url = "https://api.twitter.com/2/tweets/search/recent"
+        mock_response.headers = {"x-rate-limit-reset": "1234567890"}
         mock_http_client.get.return_value = mock_response
         
         with pytest.raises(TwitterRateLimitError):
@@ -132,7 +143,7 @@ class TestTwitterClient:
         with pytest.raises(TwitterServiceUnavailableError) as exc_info:
             await twitter_client.get_tweets_by_hashtag("Python", limit=10)
         
-        assert "Failed to connect to Twitter API" in str(exc_info.value)
+        assert "Twitter API request failed" in str(exc_info.value)
     
     @pytest.mark.asyncio
     async def test_server_error_500(
@@ -140,13 +151,17 @@ class TestTwitterClient:
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
+        mock_response.is_success = False
+        mock_response.json.return_value = {}
         mock_response.text = "Internal Server Error"
+        mock_response.url = "https://api.twitter.com/2/tweets/search/recent"
+        mock_response.headers = {}
         mock_http_client.get.return_value = mock_response
         
         with pytest.raises(TwitterServiceUnavailableError) as exc_info:
             await twitter_client.get_tweets_by_hashtag("Python", limit=10)
         
-        assert "Twitter service error" in str(exc_info.value)
+        assert "Twitter API error" in str(exc_info.value)
     
     @pytest.mark.asyncio
     async def test_empty_response_data(

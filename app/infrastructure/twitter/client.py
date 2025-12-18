@@ -1,3 +1,6 @@
+from contextlib import suppress
+from typing import Any
+
 import httpx
 
 from app.bootstrap.config import Settings
@@ -13,6 +16,10 @@ from app.core.interfaces import TweetRepository
 from app.infrastructure.twitter.auth import TwitterAuthenticator
 from app.infrastructure.twitter.mapper import map_tweet
 from app.infrastructure.twitter.rate_limiter import RateLimiter
+from app.utils.decorators import measure_time, retry_on_exception
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class TwitterClient(TweetRepository):
@@ -28,6 +35,7 @@ class TwitterClient(TweetRepository):
         self.authenticator = TwitterAuthenticator(settings)
         self.rate_limiter = rate_limiter or RateLimiter()
     
+    @measure_time
     async def get_tweets_by_hashtag(self, hashtag: str, limit: int = 30) -> list[Tweet]:
         """
         Get tweets by hashtag
@@ -39,46 +47,17 @@ class TwitterClient(TweetRepository):
         Returns:
             List of Tweet entities
         """
-        # Clean hashtag
         hashtag = hashtag.lstrip("#")
-        query = f"#{hashtag}"
+        limit = min(limit, 100)
+        logger.info(f"Fetching tweets by hashtag: {hashtag}, limit: {limit}")
         
-        # Call Twitter API
-        try:
-            await self.rate_limiter.acquire("search_tweets")
-            
-            response = await self.http_client.get(
-                f"{self.base_url}/tweets/search/recent",
-                params={
-                    "query": query,
-                    "max_results": min(limit, 100),
-                    "tweet.fields": "created_at,author_id,public_metrics,entities",
-                    "expansions": "author_id",
-                    "user.fields": "id,name,username"
-                },
-                headers=self.authenticator.get_headers()
-            )
-            
-            self._handle_response_errors(response)
-            
-            # Parse response
-            data = response.json()
-            includes = data.get("includes", {})
-            
-            # Map to entities
-            tweets = []
-            for tweet_data in data.get("data", []):
-                tweet = map_tweet(tweet_data, includes)
-                if tweet:
-                    tweets.append(tweet)
-            
-            return tweets
-                
-        except httpx.RequestError as e:
-            raise TwitterServiceUnavailableError(
-                f"Failed to connect to Twitter API: {str(e)}"
-            )
+        query = f"#{hashtag}"
+        tweets = await self._search_tweets(query, limit)
+        
+        logger.info(f"Tweets fetched for hashtag '{hashtag}': {len(tweets)} tweets")
+        return tweets
     
+    @measure_time
     async def get_tweets_by_user(self, username: str, limit: int = 30) -> list[Tweet]:
         """
         Get tweets from user's timeline
@@ -90,73 +69,162 @@ class TwitterClient(TweetRepository):
         Returns:
             List of Tweet entities
         """
-        # Clean username
         username = username.lstrip("@")
+        limit = min(limit, 100)
+        logger.info(f"Fetching tweets by user: {username}, limit: {limit}")
+        
+        user_id = await self._get_user_id(username)
+        tweets = await self._get_user_timeline(user_id, limit)
+        
+        logger.info(f"Tweets fetched for user '{username}': {len(tweets)} tweets")
+        return tweets
+    
+    @retry_on_exception(
+        max_retries=3,
+        delay=1.0,
+        backoff=2.0,
+        exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
+    )
+    async def _search_tweets(self, query: str, limit: int) -> list[Tweet]:
+        """Search tweets by query with retry logic."""
+        await self.rate_limiter.acquire("search_tweets")
+        
+        url = f"{self.base_url}/tweets/search/recent"
+        params = {
+            "query": query,
+            "max_results": limit,
+            "tweet.fields": "created_at,author_id,public_metrics,entities",
+            "expansions": "author_id",
+            "user.fields": "id,name,username"
+        }
         
         try:
-            await self.rate_limiter.acquire("get_user")
+            response = await self.http_client.get(
+                url,
+                params=params,
+                headers=self.authenticator.get_headers()
+            )
             
-            # First, get user info
-            user_response = await self.http_client.get(
-                f"{self.base_url}/users/by/username/{username}",
+            self._handle_response_errors(response)
+            
+            data = response.json()
+            return self._parse_tweets_response(data)
+        
+        except httpx.HTTPError as e:
+            logger.error(f"Twitter API HTTP error for query '{query}': {e}")
+            raise TwitterServiceUnavailableError(f"Twitter API request failed: {e}") from e
+    
+    @retry_on_exception(
+        max_retries=3,
+        delay=1.0,
+        backoff=2.0,
+        exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
+    )
+    async def _get_user_id(self, username: str) -> str:
+        """Get user ID by username with retry logic."""
+        await self.rate_limiter.acquire("get_user")
+        
+        url = f"{self.base_url}/users/by/username/{username}"
+        
+        try:
+            response = await self.http_client.get(
+                url,
                 params={"user.fields": "id,name,username"},
                 headers=self.authenticator.get_headers()
             )
             
-            self._handle_response_errors(user_response)
-            user_data = user_response.json()["data"]
-            user_id = user_data["id"]
+            self._handle_response_errors(response)
             
-            await self.rate_limiter.acquire("user_timeline")
+            data = response.json()
+            user_data = data.get("data")
             
-            # Get user's tweets
-            tweets_response = await self.http_client.get(
-                f"{self.base_url}/users/{user_id}/tweets",
-                params={
-                    "max_results": min(limit, 100),
-                    "tweet.fields": "created_at,author_id,public_metrics,entities",
-                    "user.fields": "id,name,username"
-                },
+            if not user_data or "id" not in user_data:
+                raise TwitterResourceNotFoundError(f"User @{username} not found")
+            
+            return str(user_data["id"])
+        
+        except httpx.HTTPError as e:
+            logger.error(f"Twitter API HTTP error for username '{username}': {e}")
+            raise TwitterServiceUnavailableError(f"Twitter API request failed: {e}") from e
+    
+    @retry_on_exception(
+        max_retries=3,
+        delay=1.0,
+        backoff=2.0,
+        exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
+    )
+    async def _get_user_timeline(self, user_id: str, limit: int) -> list[Tweet]:
+        """Get user timeline with retry logic."""
+        await self.rate_limiter.acquire("user_timeline")
+        
+        url = f"{self.base_url}/users/{user_id}/tweets"
+        params = {
+            "max_results": limit,
+            "tweet.fields": "created_at,author_id,public_metrics,entities",
+            "expansions": "author_id",
+            "user.fields": "id,name,username"
+        }
+        
+        try:
+            response = await self.http_client.get(
+                url,
+                params=params,
                 headers=self.authenticator.get_headers()
             )
             
-            self._handle_response_errors(tweets_response)
+            self._handle_response_errors(response)
             
-            # Parse response
-            data = tweets_response.json()
-            
-            # Create includes with user data
-            includes = {"users": [user_data]}
-            
-            # Map to entities
-            tweets = []
-            for tweet_data in data.get("data", []):
-                tweet = map_tweet(tweet_data, includes)
-                if tweet:
-                    tweets.append(tweet)
-            
-            return tweets
-                
-        except httpx.RequestError as e:
-            raise TwitterServiceUnavailableError(
-                f"Failed to connect to Twitter API: {str(e)}"
-            )
+            data = response.json()
+            return self._parse_tweets_response(data)
+        
+        except httpx.HTTPError as e:
+            logger.error(f"Twitter API HTTP error for user_id '{user_id}': {e}")
+            raise TwitterServiceUnavailableError(f"Twitter API request failed: {e}") from e
     
     def _handle_response_errors(self, response: httpx.Response) -> None:
         """Handle HTTP response errors"""
-        if response.status_code == 200:
+        if response.is_success:
             return
         
-        if response.status_code == 401:
-            raise TwitterAuthenticationError("Invalid or expired bearer token")
-        elif response.status_code == 404:
-            raise TwitterResourceNotFoundError("Resource not found")
-        elif response.status_code == 429:
-            raise TwitterRateLimitError("Rate limit exceeded")
-        elif response.status_code >= 500:
-            raise TwitterServiceUnavailableError("Twitter service error")
+        status_code = response.status_code
+        error_data = {}
+        
+        with suppress(Exception):
+            error_data = response.json()
+        
+        error_message = error_data.get("detail", response.text)
+        
+        logger.error(
+            f"Twitter API error: status={status_code}, url={response.url}, error={error_message}"
+        )
+        
+        if status_code == 401:
+            raise TwitterAuthenticationError("Invalid or expired Twitter API credentials")
+        elif status_code == 403:
+            raise TwitterAuthenticationError("Access forbidden. Check API permissions.")
+        elif status_code == 404:
+            raise TwitterResourceNotFoundError("Requested resource not found")
+        elif status_code == 429:
+            # Note: rate limit reset time could be extracted from response.headers.get("x-rate-limit-reset")
+            raise TwitterRateLimitError("Twitter API rate limit exceeded")
+        elif status_code >= 500:
+            raise TwitterServiceUnavailableError(f"Twitter API error: {error_message}")
         else:
-            raise TwitterAPIError(
-                f"Twitter API error: {response.status_code}",
-                status_code=response.status_code
-            )
+            raise TwitterAPIError(f"Twitter API error: {error_message}", status_code)
+    
+    def _parse_tweets_response(self, data: dict[str, Any]) -> list[Tweet]:
+        """Parse tweets from API response."""
+        tweets_data = data.get("data", [])
+        includes = data.get("includes", {})
+        
+        if not tweets_data:
+            logger.warning("No tweets in response")
+            return []
+        
+        tweets: list[Tweet] = []
+        for tweet_data in tweets_data:
+            tweet = map_tweet(tweet_data, includes)
+            if tweet:
+                tweets.append(tweet)
+        
+        return tweets
