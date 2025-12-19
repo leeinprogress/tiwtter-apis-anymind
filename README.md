@@ -18,6 +18,7 @@ RESTful API service for fetching tweets from Twitter API v2.
 - **Middleware** for logging and error handling
 - **Caching** support (Memory/Redis)
 - **Rate limiting** with retry logic
+- **Comprehensive testing** with 49 tests (41 unit + 8 integration) achieving 79% code coverage
 
 ##  Architecture
 
@@ -34,13 +35,6 @@ Clean Architecture with 4 layers:
 │   Core (Domain)                     │  ← Entities, Interfaces, Exceptions
 └─────────────────────────────────────┘
 ```
-
-Key design patterns:
-- **Repository Pattern** for data access
-- **Dependency Injection** via FastAPI
-- **Factory Pattern** for app creation
-- **Decorator Pattern** for retry/timing
-- **Middleware Pattern** for cross-cutting concerns
 
 
 ##  Installation
@@ -96,6 +90,33 @@ python -m app.main
 ```
 
 The service will be available at: `http://localhost:8000`
+
+### Docker Development
+
+```bash
+# Build and run with Docker Compose
+make docker-build
+make docker-run
+
+# Or directly
+docker-compose up --build
+
+# Stop services
+docker-compose down
+```
+
+**Redis Support (Optional):**
+
+By default, the application uses in-memory caching. To enable Redis caching:
+
+1. Set `REDIS_ENABLED=true` in your `.env` file or in `docker-compose.yml`
+2. Start both app and Redis services:
+
+```bash
+docker-compose up
+```
+
+The Redis service will be available on port 6379.
 
 
 ##  API Documentation
@@ -214,7 +235,6 @@ Optional caching to improve performance and reduce API calls:
 - Configurable TTL (default: 300 seconds)
 
 
-
 ##  API Usage Examples
 
 ### Search Tweets by Hashtag
@@ -230,6 +250,21 @@ curl http://localhost:8000/api/v1/hashtags/Python?limit=50
 curl -H "Accept: application/json" http://localhost:8000/api/v1/hashtags/Python?limit=40
 ```
 
+
+### Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0"
+}
+```
+
 ### Get User Timeline
 
 ```bash
@@ -243,20 +278,22 @@ curl http://localhost:8000/api/v1/users/twitter?limit=20
 curl -H "Accept: application/json" http://localhost:8000/api/v1/users/twitter?limit=20
 ```
 
-##  Make Commands
+##  Development Commands
+
+### Make Commands
 
 ```bash
 make help          # Show all available commands
 make install       # Install dependencies
-make run           # Run application
-make test          # Run all tests
+make run           # Run the application
+make test          # Run all tests with coverage
 make test-unit     # Run unit tests only
 make test-int      # Run integration tests only
 make lint          # Run linter (ruff)
-make format        # Format code
-make type-check    # Run mypy type checking
-make check         # Run all quality checks
+make format        # Format code with ruff
 make clean         # Clean cache and build files
+make docker-build  # Build Docker image
+make docker-run    # Run with Docker Compose
 ```
 
 ##  License
