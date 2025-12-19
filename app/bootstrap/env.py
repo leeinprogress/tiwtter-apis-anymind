@@ -1,5 +1,3 @@
-"""Environment configuration"""
-
 import os
 import sys
 from pathlib import Path
@@ -9,7 +7,6 @@ from dotenv import load_dotenv
 
 
 def load_environment() -> dict[str, Any]:
-    """Load environment variables from .env file"""
     env_file = Path(".env")
     
     if env_file.exists():
@@ -23,7 +20,6 @@ def load_environment() -> dict[str, Any]:
         else:
             print("No .env files found - using defaults")
     
-    # Validate bearer token
     bearer_token = os.getenv("TWITTER_BEARER_TOKEN", "")
     if not bearer_token or bearer_token == "your_bearer_token_here":
         print("\n WARNING: TWITTER_BEARER_TOKEN not configured!")

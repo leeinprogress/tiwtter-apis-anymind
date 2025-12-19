@@ -37,16 +37,6 @@ class TwitterClient(TweetRepository):
     
     @measure_time
     async def get_tweets_by_hashtag(self, hashtag: str, limit: int = 30) -> list[Tweet]:
-        """
-        Get tweets by hashtag
-        
-        Args:
-            hashtag: Hashtag to search (with or without #)
-            limit: Number of tweets to retrieve (default: 30)
-            
-        Returns:
-            List of Tweet entities
-        """
         hashtag = hashtag.lstrip("#")
         limit = min(limit, self.settings.twitter_max_results)
         logger.info(f"Fetching tweets by hashtag: {hashtag}, limit: {limit}")
@@ -59,16 +49,6 @@ class TwitterClient(TweetRepository):
     
     @measure_time
     async def get_tweets_by_user(self, username: str, limit: int = 30) -> list[Tweet]:
-        """
-        Get tweets from user's timeline
-        
-        Args:
-            username: Twitter username (with or without @)
-            limit: Number of tweets to retrieve (default: 30)
-            
-        Returns:
-            List of Tweet entities
-        """
         username = username.lstrip("@")
         limit = min(limit, self.settings.twitter_max_results)
         logger.info(f"Fetching tweets by user: {username}, limit: {limit}")
@@ -86,7 +66,6 @@ class TwitterClient(TweetRepository):
         exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
     )
     async def _search_tweets(self, query: str, limit: int) -> list[Tweet]:
-        """Search tweets by query with retry logic."""
         await self.rate_limiter.acquire("search_tweets")
         
         url = f"{self.base_url}/tweets/search/recent"
@@ -122,7 +101,6 @@ class TwitterClient(TweetRepository):
         exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
     )
     async def _get_user_id(self, username: str) -> str:
-        """Get user ID by username with retry logic."""
         await self.rate_limiter.acquire("get_user")
         
         url = f"{self.base_url}/users/by/username/{username}"
@@ -156,7 +134,6 @@ class TwitterClient(TweetRepository):
         exceptions=(httpx.HTTPError, TwitterServiceUnavailableError),
     )
     async def _get_user_timeline(self, user_id: str, limit: int) -> list[Tweet]:
-        """Get user timeline with retry logic."""
         await self.rate_limiter.acquire("user_timeline")
         
         url = f"{self.base_url}/users/{user_id}/tweets"
@@ -185,7 +162,6 @@ class TwitterClient(TweetRepository):
             raise TwitterServiceUnavailableError(f"Twitter API request failed: {e}") from e
     
     def _handle_response_errors(self, response: httpx.Response) -> None:
-        """Handle HTTP response errors"""
         if response.is_success:
             return
         
@@ -220,7 +196,6 @@ class TwitterClient(TweetRepository):
             raise TwitterAPIError(f"Twitter API error: {error_message}", status_code)
     
     def _parse_tweets_response(self, data: dict[str, Any]) -> list[Tweet]:
-        """Parse tweets from API response."""
         tweets_data = data.get("data", [])
         includes = data.get("includes", {})
         

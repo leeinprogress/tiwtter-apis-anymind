@@ -1,5 +1,3 @@
-"""Application services"""
-
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -13,8 +11,6 @@ logger = get_logger(__name__)
 
 
 class TweetService:
-    """Service for tweet operations"""
-    
     def __init__(
         self,
         tweet_repository: TweetRepository,
@@ -33,7 +29,6 @@ class TweetService:
     ) -> list[Tweet]:
         cached = await self.cache_service.get(cache_key)
         if cached is not None:
-            logger.debug(f"Returning cached result for key: {cache_key}")
             return cached
         
         tweets = await fetch_fn(*args)

@@ -27,7 +27,6 @@ class TestRateLimiter:
     async def test_rate_limit_resets_after_window(self):
         limiter = RateLimiter()
 
-        # Use up the limit
         await limiter.acquire("test")
         await limiter.acquire("test")
 

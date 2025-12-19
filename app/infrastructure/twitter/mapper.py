@@ -8,11 +8,7 @@ logger = get_logger(__name__)
 
 
 def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | None:
-    """
-    Map Twitter API tweet data to Tweet entity
-    """
     try:
-        # Find author data
         author_id = tweet_data.get("author_id")
         user_data = _find_user(author_id, includes)
         
@@ -20,20 +16,15 @@ def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | N
             logger.warning("User not found: author_id=%s", author_id)
             return None
         
-        # Create Account
         account = Account(
             fullname=user_data.get("name", "Unknown"),
             href=f"/{user_data.get('username', 'unknown')}",
             id=int(user_data.get("id", 0))
         )
         
-        # Get metrics
         metrics = tweet_data.get("public_metrics", {})
-        
-        # Get created_at and format
         created_at = tweet_data.get("created_at", "")
         
-        # Create Tweet
         return Tweet(
             account=account,
             date=_format_date(created_at),
@@ -43,6 +34,7 @@ def map_tweet(tweet_data: dict[str, Any], includes: dict[str, Any]) -> Tweet | N
             retweets=metrics.get("retweet_count", 0),
             text=tweet_data.get("text", "")
         )
+
     except (ValueError, KeyError, TypeError) as e:
         logger.error("Tweet mapping error: %s (tweet_id=%s)", str(e), tweet_data.get("id"))
         return None
@@ -66,17 +58,9 @@ def _extract_hashtags(tweet_data: dict[str, Any]) -> list[str]:
 
 
 def _format_date(iso_date: str) -> str:
-    """
-    Format ISO date to specification format
-    
-    Input: "2018-03-07T12:57:00.000Z"
-    Output: "12:57 PM - 7 Mar 2018"
-    """
     try:
         dt = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
-        # Format: "12:57 PM - 7 Mar 2018"
         formatted = dt.strftime("%I:%M %p - %-d %b %Y")
-        # Remove leading zero from hour
         if formatted[0] == "0":
             formatted = formatted[1:]
         return formatted

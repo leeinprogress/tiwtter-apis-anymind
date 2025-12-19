@@ -1,3 +1,5 @@
+"""Mock Twitter API responses for testing."""
+
 MOCK_TWEET_SEARCH_RESPONSE = {
     "data": [
         {

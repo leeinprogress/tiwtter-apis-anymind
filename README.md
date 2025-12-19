@@ -1,58 +1,265 @@
 # Twitter API Service
 
-A RESTful API service for fetching tweets from Twitter API v2.
+RESTful API service for fetching tweets from Twitter API v2.
 
-## Features
+##  Features
 
-- Search tweets by hashtag
-- Get user timeline tweets
-- Twitter API v2 integration
+### RESTful API Endpoints
 
-## Requirements
+1. **GET /api/v1/hashtags/{hashtag}** - Fetch tweets by hashtag
+2. **GET /api/v1/users/{username}** - Fetch user timeline tweets
 
-- Python 3.12+
-- Twitter API Bearer Token
+### Technical Highlights
 
-## Installation
+- **Clean Architecture** with clear separation of concerns (Core, Application, Infrastructure, Presentation)
+- **Custom Twitter API v2 client** (no external SDK used, as per requirements)
+- **Async/await** throughout for high performance
+- **Error handling** with custom exception hierarchy
+- **Middleware** for logging and error handling
+- **Caching** support (Memory/Redis)
+- **Rate limiting** with retry logic
+
+##  Architecture
+
+Clean Architecture with 4 layers:
+
+```
+┌─────────────────────────────────────┐
+│   Presentation (FastAPI)            │  ← API endpoints, middleware
+├─────────────────────────────────────┤
+│   Application (Use Cases)           │  ← TweetService (business logic)
+├─────────────────────────────────────┤
+│   Infrastructure (External)         │  ← TwitterClient, Cache, HTTP
+├─────────────────────────────────────┤
+│   Core (Domain)                     │  ← Entities, Interfaces, Exceptions
+└─────────────────────────────────────┘
+```
+
+Key design patterns:
+- **Repository Pattern** for data access
+- **Dependency Injection** via FastAPI
+- **Factory Pattern** for app creation
+- **Decorator Pattern** for retry/timing
+- **Middleware Pattern** for cross-cutting concerns
+
+
+##  Installation
+
+### 1. Clone the repository
 
 ```bash
-# Create virtual environment
+git clone <repository-url>
+cd anymind-twitter-apis
+```
+
+### 2. Create virtual environment
+
+```bash
 python3.12 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-# Install dependencies
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
+### 4. Configure environment
 
-Create a `.env` file based on `.env.example`:
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Add your Twitter API credentials to `.env`.
+Edit `.env` and add your Twitter Bearer Token:
 
-## Running the Application
-
-```bash
-# Development mode
-uvicorn app.main:app --reload
-
-# Or use Make
-make run
+```env
+TWITTER_BEARER_TOKEN=your_actual_bearer_token_here
 ```
 
-The API will be available at `http://localhost:8000`
 
-## API Documentation
+##  Running
 
-Once running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+### Local Development
 
-## License
+```bash
+# Using uvicorn (recommended for development)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Or using Make
+make run
+
+# Or using Python module
+python -m app.main
+```
+
+The service will be available at: `http://localhost:8000`
+
+
+##  API Documentation
+
+### Interactive Documentation
+
+After starting the service:
+
+- **Swagger UI**: http://localhost:8000/docs (interactive API testing)
+- **ReDoc**: http://localhost:8000/redoc (clean documentation)
+
+
+##  Testing
+
+### Run All Tests
+
+```bash
+# Using Make
+make test
+
+# Or directly with pytest
+pytest
+
+# With verbose output
+pytest -v
+
+# With coverage report
+pytest --cov=app --cov-report=html
+pytest --cov=app --cov-report=term-missing
+```
+
+
+##  Project Structure
+
+```
+anymind-twitter-apis/
+├── app/
+│   ├── core/                   # Domain layer
+│   │   ├── entities.py        # Tweet, Account entities
+│   │   ├── exceptions.py      # Custom exceptions
+│   │   └── interfaces.py      # Abstract interfaces
+│   ├── application/           # Business logic layer
+│   │   └── services.py        # TweetService
+│   ├── infrastructure/        # External services layer
+│   │   ├── twitter/
+│   │   │   ├── client.py      # Twitter API client
+│   │   │   ├── auth.py        # Authentication
+│   │   │   ├── mapper.py      # API response mapping
+│   │   │   └── rate_limiter.py
+│   │   ├── cache/
+│   │   │   └── cache_service.py
+│   │   └── http/
+│   │       └── client.py      # HTTP client factory
+│   ├── presentation/          # API layer
+│   │   ├── api/
+│   │   │   ├── dependencies.py
+│   │   │   └── v1/
+│   │   │       ├── hashtags.py
+│   │   │       └── users.py
+│   │   ├── middleware/
+│   │   │   ├── error_handler.py
+│   │   │   └── logging.py
+│   │   └── schemas/
+│   │       ├── common.py
+│   │       └── tweet.py
+│   ├── bootstrap/             # App initialization
+│   │   ├── app_factory.py    # App factory pattern
+│   │   ├── config.py         # Settings with validation
+│   │   ├── env.py            # Environment loading
+│   │   ├── lifecycle.py      # Startup/shutdown handlers
+│   │   ├── middleware.py     # Middleware setup
+│   │   └── routes.py         # Route setup
+│   ├── utils/                # Utilities
+│   │   ├── decorators.py     # Retry & timing decorators
+│   │   └── logger.py         # Logging configuration
+│   └── main.py               # Application entry point
+├── tests/
+│   ├── unit/                 # 41 unit tests
+│   ├── integration/          # 8 integration tests
+│   └── fixtures/            # Test data
+├── requirements.txt
+├── pyproject.toml
+├── Makefile
+└── README.md
+```
+
+
+##  Key Implementation Details
+
+### Custom Twitter API Client
+
+As per project requirements, this project implements its own Twitter API v2 client without using official Twitter SDK:
+
+- Direct HTTP calls to Twitter API v2
+- Custom authentication with Bearer Token
+- Manual response parsing and mapping
+- Error handling for all API error codes
+- Rate limiting based on Twitter API limits
+
+### Rate Limiting
+
+Implements client-side rate limiting to prevent API quota exhaustion:
+
+- **Search tweets**: 12 requests/minute
+- **Get user**: 20 requests/minute
+- **User timeline**: 100 requests/minute
+
+Includes retry mechanism with exponential backoff for failed requests.
+
+### Caching
+
+Optional caching to improve performance and reduce API calls:
+
+- In-memory cache (default)
+- Redis cache (when `REDIS_ENABLED=true`)
+- Configurable TTL (default: 300 seconds)
+
+
+
+##  API Usage Examples
+
+### Search Tweets by Hashtag
+
+```bash
+# Basic request
+curl http://localhost:8000/api/v1/hashtags/Python
+
+# With limit
+curl http://localhost:8000/api/v1/hashtags/Python?limit=50
+
+# With Accept header
+curl -H "Accept: application/json" http://localhost:8000/api/v1/hashtags/Python?limit=40
+```
+
+### Get User Timeline
+
+```bash
+# Basic request
+curl http://localhost:8000/api/v1/users/twitter
+
+# With limit
+curl http://localhost:8000/api/v1/users/twitter?limit=20
+
+# With Accept header
+curl -H "Accept: application/json" http://localhost:8000/api/v1/users/twitter?limit=20
+```
+
+##  Make Commands
+
+```bash
+make help          # Show all available commands
+make install       # Install dependencies
+make run           # Run application
+make test          # Run all tests
+make test-unit     # Run unit tests only
+make test-int      # Run integration tests only
+make lint          # Run linter (ruff)
+make format        # Format code
+make type-check    # Run mypy type checking
+make check         # Run all quality checks
+make clean         # Clean cache and build files
+```
+
+##  License
 
 MIT
 

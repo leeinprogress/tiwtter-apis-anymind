@@ -18,14 +18,8 @@ def retry_on_exception(
     exceptions: tuple[type[Exception], ...] = (Exception,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
-    Decorator for retrying a function if an exception is raised
+    Decorator for retrying a function if an exception is raised.
     Works for both sync and async functions
-    
-    Args:
-        max_retries: Maximum number of retry attempts
-        delay: Initial delay between retries (seconds)
-        backoff: Multiplier for delay after each retry
-        exceptions: Tuple of exceptions to catch
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)

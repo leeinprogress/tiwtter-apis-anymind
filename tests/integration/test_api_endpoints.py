@@ -1,5 +1,3 @@
-"""Integration tests for API endpoints."""
-
 from unittest.mock import AsyncMock
 
 import pytest
@@ -12,13 +10,11 @@ from app.presentation.api.dependencies import get_tweet_service
 
 @pytest.fixture
 def mock_tweet_service():
-    """Create mock tweet service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def client(mock_tweet_service):
-    """Create test client with dependency overrides."""
     app.dependency_overrides[get_tweet_service] = lambda: mock_tweet_service
     
     yield TestClient(app)
@@ -28,7 +24,6 @@ def client(mock_tweet_service):
 
 @pytest.fixture
 def mock_tweets():
-    """Create mock tweet data."""
     return [
         Tweet(
             account=Account(
@@ -50,7 +45,6 @@ class TestHashtagEndpoint:
     """Tests for /api/v1/hashtags/{hashtag} endpoint."""
 
     def test_get_tweets_by_hashtag_success(self, client, mock_tweet_service, mock_tweets):
-        """Test successful hashtag request."""
         mock_tweet_service.get_tweets_by_hashtag.return_value = mock_tweets
         
         response = client.get("/api/v1/hashtags/Python?limit=30")
@@ -64,7 +58,6 @@ class TestHashtagEndpoint:
         mock_tweet_service.get_tweets_by_hashtag.assert_called_once_with("Python", 30)
 
     def test_get_tweets_by_hashtag_default_limit(self, client, mock_tweet_service, mock_tweets):
-        """Test hashtag request with default limit."""
         mock_tweet_service.get_tweets_by_hashtag.return_value = mock_tweets
         
         response = client.get("/api/v1/hashtags/Python")
@@ -74,13 +67,11 @@ class TestHashtagEndpoint:
         mock_tweet_service.get_tweets_by_hashtag.assert_called_once_with("Python", 30)
 
     def test_get_tweets_by_hashtag_invalid_limit(self, client):
-        """Test hashtag request with invalid limit."""
         response = client.get("/api/v1/hashtags/Python?limit=0")
 
         assert response.status_code == 422  # Validation error
 
     def test_get_tweets_by_hashtag_empty_hashtag(self, client):
-        """Test request with empty hashtag."""
         response = client.get("/api/v1/hashtags/?limit=30")
 
         assert response.status_code == 404  # Not found
@@ -90,7 +81,6 @@ class TestUserEndpoint:
     """Tests for /api/v1/users/{username} endpoint."""
 
     def test_get_tweets_by_user_success(self, client, mock_tweet_service, mock_tweets):
-        """Test successful user timeline request."""
         mock_tweet_service.get_tweets_by_user.return_value = mock_tweets
         
         response = client.get("/api/v1/users/twitter?limit=20")
@@ -102,7 +92,6 @@ class TestUserEndpoint:
         mock_tweet_service.get_tweets_by_user.assert_called_once_with("twitter", 20)
 
     def test_get_tweets_by_user_default_limit(self, client, mock_tweet_service, mock_tweets):
-        """Test user request with default limit."""
         mock_tweet_service.get_tweets_by_user.return_value = mock_tweets
         
         response = client.get("/api/v1/users/twitter")
@@ -113,10 +102,7 @@ class TestUserEndpoint:
 
 
 class TestHealthEndpoint:
-    """Tests for /health endpoint."""
-
     def test_health_check(self, client):
-        """Test health check endpoint."""
         response = client.get("/health")
 
         assert response.status_code == 200
@@ -126,10 +112,7 @@ class TestHealthEndpoint:
 
 
 class TestRootEndpoint:
-    """Tests for / endpoint."""
-
     def test_root(self, client):
-        """Test root endpoint."""
         response = client.get("/")
 
         assert response.status_code == 200

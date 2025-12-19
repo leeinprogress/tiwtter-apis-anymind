@@ -1,5 +1,3 @@
-"""Pytest configuration and fixtures."""
-
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -53,20 +51,17 @@ def test_settings() -> Settings:
 
 @pytest.fixture
 def mock_http_client() -> AsyncMock:
-    """Create mock HTTP client."""
     client = AsyncMock(spec=httpx.AsyncClient)
     return client
 
 
 @pytest.fixture
 def rate_limiter() -> RateLimiter:
-    """Create rate limiter for tests."""
     return RateLimiter()
 
 
 @pytest.fixture
 def cache_service(test_settings: Settings) -> RedisCacheService:
-    """Create cache service for tests."""
     return RedisCacheService(test_settings)
 
 
@@ -76,7 +71,6 @@ def twitter_client(
     mock_http_client: AsyncMock,
     rate_limiter: RateLimiter,
 ) -> TwitterClient:
-    """Create Twitter API client for tests."""
     return TwitterClient(test_settings, mock_http_client, rate_limiter)
 
 
@@ -86,6 +80,5 @@ def tweet_service(
     cache_service: RedisCacheService,
     test_settings: Settings,
 ) -> TweetService:
-    """Create tweet service for tests."""
     return TweetService(twitter_client, cache_service, test_settings)
 

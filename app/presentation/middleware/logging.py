@@ -1,5 +1,3 @@
-"""Logging middleware for request/response tracking."""
-
 import time
 
 from fastapi import Request

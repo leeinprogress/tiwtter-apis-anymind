@@ -1,5 +1,3 @@
-"""Exception handlers for the API."""
-
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
@@ -11,7 +9,6 @@ logger = get_logger(__name__)
 
 
 async def twitter_api_error_handler(request: Request, exc: TwitterAPIError) -> JSONResponse:
-    """Handle TwitterAPIError exceptions."""
     logger.error(
         "twitter_api_error",
         path=request.url.path,
@@ -32,7 +29,6 @@ async def twitter_api_error_handler(request: Request, exc: TwitterAPIError) -> J
 
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle all unhandled exceptions."""
     logger.exception(
         "unhandled_exception",
         path=request.url.path,

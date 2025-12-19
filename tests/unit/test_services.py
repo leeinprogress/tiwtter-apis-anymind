@@ -1,5 +1,3 @@
-"""Unit tests for application services"""
-
 import pytest
 from unittest.mock import AsyncMock
 
@@ -12,7 +10,6 @@ class TestTweetService:
     async def test_get_tweets_by_hashtag_cache_miss(
         self, tweet_service: TweetService
     ):
-        """Test getting tweets from repository when cache misses."""
         # Mock cache miss
         tweet_service.cache_service.get = AsyncMock(return_value=None)
         
@@ -43,7 +40,6 @@ class TestTweetService:
     async def test_get_tweets_by_hashtag_cache_hit(
         self, tweet_service: TweetService
     ):
-        """Test getting tweets from cache."""
         # Mock cache hit
         cached_tweets = [
             Tweet(
@@ -69,7 +65,6 @@ class TestTweetService:
     async def test_get_tweets_by_user(
         self, tweet_service: TweetService
     ):
-        """Test getting user tweets from repository."""
         tweet_service.cache_service.get = AsyncMock(return_value=None)
         
         mock_tweets = [
@@ -97,7 +92,6 @@ class TestTweetService:
     async def test_normalize_limit_too_high(
         self, tweet_service: TweetService
     ):
-        """Test that limit is capped at maximum."""
         tweet_service.cache_service.get = AsyncMock(return_value=None)
         tweet_service.tweet_repository.get_tweets_by_hashtag = AsyncMock(return_value=[])
         
@@ -109,7 +103,6 @@ class TestTweetService:
     async def test_normalize_limit_too_low(
         self, tweet_service: TweetService
     ):
-        """Test that limit defaults to 30 when 0."""
         tweet_service.cache_service.get = AsyncMock(return_value=None)
         tweet_service.tweet_repository.get_tweets_by_hashtag = AsyncMock(return_value=[])
         

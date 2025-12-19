@@ -1,5 +1,3 @@
-"""FastAPI application factory."""
-
 from fastapi import FastAPI
 
 from app import __version__
